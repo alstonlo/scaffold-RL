@@ -30,7 +30,7 @@ class ScaffoldDecorator:
 
     @property
     def valid_actions(self):
-        return list(self._valid_actions)
+        return list(sorted(self._valid_actions))
 
     def reset(self):
         self._mol = self.init_mol

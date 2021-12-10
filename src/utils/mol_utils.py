@@ -112,6 +112,14 @@ def close_open_ends(mol, idxs=None):
             set_openness(atom, is_open=False)
 
 
+def base_smiles(smiles):
+    mol = Chem.MolFromSmiles(smiles)
+    for atom in mol.GetAtoms():
+        if openness(atom):
+            set_openness(atom, is_open=False)
+    return Chem.MolToSmiles(mol)
+
+
 def enum_molecule_mods(smiles, atom_types, allowed_ring_sizes, max_mol_size):
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
@@ -124,10 +132,10 @@ def enum_molecule_mods(smiles, atom_types, allowed_ring_sizes, max_mol_size):
             open_idxs.append(atom.GetIdx())
 
     actions = set()
-    actions.add(smiles)
     if open_idxs:
         actions.update(_enum_atom_additions(mol, open_idxs, atom_types, max_mol_size))
         actions.update(_enum_bond_additions(mol, open_idxs, allowed_ring_sizes))
+    actions.add(smiles if actions else base_smiles(smiles))
     return actions
 
 
@@ -240,16 +248,3 @@ def _enum_bond_additions(mol, open_idxs, allowed_ring_sizes):
             bond_additions.add(Chem.MolToSmiles(next_mol))
 
     return bond_additions
-
-
-# ==================================================================================================
-# Debugging
-# ==================================================================================================
-
-
-def clean_smiles(smiles):
-    mol = Chem.MolFromSmiles(smiles)
-    for atom in mol.GetAtoms():
-        if openness(atom):
-            set_openness(atom, is_open=False)
-    return Chem.MolToSmiles(mol)
