@@ -286,3 +286,16 @@ def _enum_bond_additions(mol, open_idxs, allowed_ring_sizes):
             bond_additions.add(Chem.MolToSmiles(next_mol))
 
     return bond_additions
+
+
+# ==================================================================================================
+# Debugging
+# ==================================================================================================
+
+
+def clean_smiles(smiles):
+    mol = Chem.MolFromSmiles(smiles)
+    for atom in mol.GetAtoms():
+        if openness(atom):
+            set_openness(atom, is_open=False)
+    return Chem.MolToSmiles(mol)
