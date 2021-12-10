@@ -44,7 +44,7 @@ def penalized_logp(mol):
     cycle_std = 0.2860212110245455
 
     log_p = Descriptors.MolLogP(mol)
-    SA = sascorer.calculateScore(mol)
+    SA = -sascorer.calculateScore(mol)
 
     # cycle score
     cycle_list = nx.cycle_basis(nx.Graph(Chem.rdmolops.GetAdjacencyMatrix(mol)))
