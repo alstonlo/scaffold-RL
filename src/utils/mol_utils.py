@@ -3,8 +3,9 @@ import itertools
 import os
 import sys
 
+import networkx as nx
 from rdkit import Chem
-from rdkit.Chem import AllChem, Descriptors, RDConfig
+from rdkit.Chem import Descriptors, RDConfig
 from rdkit.Chem.FilterCatalog import FilterCatalogParams, FilterCatalog
 
 sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))
@@ -30,25 +31,38 @@ def update_explicit_Hs(atom, delta):
 # ==================================================================================================
 # Penalized logP
 # Reference:
-#   https://github.com/google-research/google-research/blob/master/mol_dqn/chemgraph/dqn/py/molecules.py
+#   https://github.com/bowenliu16/rl_graph_generation/blob/master/gym-molecule/gym_molecule/envs/molecule.py
 # ==================================================================================================
 
 
-def get_largest_ring_size(mol):
-    cycle_list = mol.GetRingInfo().AtomRings()
-    if cycle_list:
-        cycle_length = max([len(j) for j in cycle_list])
-    else:
-        cycle_length = 0
-    return cycle_length
-
-
 def penalized_logp(mol):
+    logP_mean = 2.4570953396190123
+    logP_std = 1.434324401111988
+    SA_mean = -3.0525811293166134
+    SA_std = 0.8335207024513095
+    cycle_mean = -0.0485696876403053
+    cycle_std = 0.2860212110245455
+
     log_p = Descriptors.MolLogP(mol)
-    sas_score = sascorer.calculateScore(mol)
-    largest_ring_size = get_largest_ring_size(mol)
-    cycle_score = max(largest_ring_size - 6, 0)
-    return log_p - sas_score - cycle_score
+    SA = sascorer.calculateScore(mol)
+
+    # cycle score
+    cycle_list = nx.cycle_basis(nx.Graph(Chem.rdmolops.GetAdjacencyMatrix(mol)))
+    if len(cycle_list) == 0:
+        cycle_length = 0
+    else:
+        cycle_length = max([len(j) for j in cycle_list])
+    if cycle_length <= 6:
+        cycle_length = 0
+    else:
+        cycle_length = cycle_length - 6
+    cycle_score = -cycle_length
+
+    normalized_log_p = (log_p - logP_mean) / logP_std
+    normalized_SA = (SA - SA_mean) / SA_std
+    normalized_cycle = (cycle_score - cycle_mean) / cycle_std
+
+    return normalized_log_p + normalized_SA + normalized_cycle
 
 
 # ==================================================================================================
@@ -63,7 +77,7 @@ def master_filter(mol, zinc=True, steric=True):
     if zinc:
         filters.append(zinc_molecule_filter)
     if steric:
-        filters.append(steric_strain_filter)
+        pass  # TODO: temporarily removed because slow
     return all(f(mol) for f in filters)
 
 
@@ -72,66 +86,6 @@ def zinc_molecule_filter(mol):
     params.AddCatalog(FilterCatalogParams.FilterCatalogs.ZINC)
     catalog = FilterCatalog(params)
     return not catalog.HasMatch(mol)
-
-
-def steric_strain_filter(mol, cutoff=0.82, max_attempts_embed=20, max_num_iters=200):
-    if mol.GetNumAtoms() <= 2:
-        return True
-    mol = Chem.AddHs(mol)
-
-    # generate an initial 3d conformer
-    try:
-        flag = AllChem.EmbedMolecule(mol, maxAttempts=max_attempts_embed)
-        if flag == -1:
-            return False
-    except:  # to catch error caused by molecules such as C=[SH]1=C2OC21ON(N)OC(=O)NO
-        return False
-
-    # set up the forcefield
-    AllChem.MMFFSanitizeMolecule(mol)
-    if AllChem.MMFFHasAllMoleculeParams(mol):
-        mmff_props = AllChem.MMFFGetMoleculeProperties(mol)
-        try:  # to deal with molecules such as CNN1NS23(=C4C5=C2C(=C53)N4Cl)S1
-            ff = AllChem.MMFFGetMoleculeForceField(mol, mmff_props)
-        except:
-            return False
-    else:
-        return False
-
-    # minimize steric energy
-    try:
-        ff.Minimize(maxIts=max_num_iters)
-    except:
-        return False
-
-    # get the angle bend term contribution to the total molecule strain energy
-    mmff_props.SetMMFFBondTerm(False)
-    mmff_props.SetMMFFAngleTerm(True)
-    mmff_props.SetMMFFStretchBendTerm(False)
-    mmff_props.SetMMFFOopTerm(False)
-    mmff_props.SetMMFFTorsionTerm(False)
-    mmff_props.SetMMFFVdWTerm(False)
-    mmff_props.SetMMFFEleTerm(False)
-
-    ff = AllChem.MMFFGetMoleculeForceField(mol, mmff_props)
-
-    min_angle_e = ff.CalcEnergy()
-
-    # find number of angles in molecule
-    num_atoms = mol.GetNumAtoms()
-    atom_indices = range(num_atoms)
-    angle_atom_triplets = itertools.permutations(atom_indices, 3)
-    double_num_angles = 0
-    for triplet in list(angle_atom_triplets):
-        if mmff_props.GetMMFFAngleBendParams(mol, *triplet):
-            double_num_angles += 1
-    num_angles = double_num_angles / 2  # account for duplicate angles
-
-    avr_angle_e = min_angle_e / num_angles
-    if avr_angle_e < cutoff:
-        return True
-    else:
-        return False
 
 
 # ==================================================================================================
@@ -236,7 +190,7 @@ def _enum_atom_additions(mol, open_idxs, atom_types, max_mol_size):
 
             if Chem.SanitizeMol(next_mol, catchErrors=True):
                 continue  # sanitization failed
-            if not master_filter(next_mol, steric=False):
+            if not master_filter(next_mol):
                 continue  # failed to pass filters
 
             set_openness(atom, is_open=False)
