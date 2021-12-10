@@ -4,8 +4,7 @@ import os
 import sys
 
 from rdkit import Chem
-from rdkit.Chem import Descriptors
-from rdkit.Chem import RDConfig
+from rdkit.Chem import AllChem, Descriptors, RDConfig
 from rdkit.Chem.FilterCatalog import FilterCatalogParams, FilterCatalog
 
 sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))
@@ -54,13 +53,17 @@ def penalized_logp(mol):
 
 # ==================================================================================================
 # Molecular Filers
+# References:
+#   https://github.com/bowenliu16/rl_graph_generation/blob/master/gym-molecule/gym_molecule/envs/molecule.py
 # ==================================================================================================
 
 
-def master_filter(mol):
-    filters = [
-        zinc_molecule_filter  # TODO: add more domain-specific filters
-    ]
+def master_filter(mol, zinc=True, steric=True):
+    filters = list()
+    if zinc:
+        filters.append(zinc_molecule_filter)
+    if steric:
+        filters.append(steric_strain_filter)
     return all(f(mol) for f in filters)
 
 
@@ -69,6 +72,66 @@ def zinc_molecule_filter(mol):
     params.AddCatalog(FilterCatalogParams.FilterCatalogs.ZINC)
     catalog = FilterCatalog(params)
     return not catalog.HasMatch(mol)
+
+
+def steric_strain_filter(mol, cutoff=0.82, max_attempts_embed=20, max_num_iters=200):
+    if mol.GetNumAtoms() <= 2:
+        return True
+    mol = Chem.AddHs(mol)
+
+    # generate an initial 3d conformer
+    try:
+        flag = AllChem.EmbedMolecule(mol, maxAttempts=max_attempts_embed)
+        if flag == -1:
+            return False
+    except:  # to catch error caused by molecules such as C=[SH]1=C2OC21ON(N)OC(=O)NO
+        return False
+
+    # set up the forcefield
+    AllChem.MMFFSanitizeMolecule(mol)
+    if AllChem.MMFFHasAllMoleculeParams(mol):
+        mmff_props = AllChem.MMFFGetMoleculeProperties(mol)
+        try:  # to deal with molecules such as CNN1NS23(=C4C5=C2C(=C53)N4Cl)S1
+            ff = AllChem.MMFFGetMoleculeForceField(mol, mmff_props)
+        except:
+            return False
+    else:
+        return False
+
+    # minimize steric energy
+    try:
+        ff.Minimize(maxIts=max_num_iters)
+    except:
+        return False
+
+    # get the angle bend term contribution to the total molecule strain energy
+    mmff_props.SetMMFFBondTerm(False)
+    mmff_props.SetMMFFAngleTerm(True)
+    mmff_props.SetMMFFStretchBendTerm(False)
+    mmff_props.SetMMFFOopTerm(False)
+    mmff_props.SetMMFFTorsionTerm(False)
+    mmff_props.SetMMFFVdWTerm(False)
+    mmff_props.SetMMFFEleTerm(False)
+
+    ff = AllChem.MMFFGetMoleculeForceField(mol, mmff_props)
+
+    min_angle_e = ff.CalcEnergy()
+
+    # find number of angles in molecule
+    num_atoms = mol.GetNumAtoms()
+    atom_indices = range(num_atoms)
+    angle_atom_triplets = itertools.permutations(atom_indices, 3)
+    double_num_angles = 0
+    for triplet in list(angle_atom_triplets):
+        if mmff_props.GetMMFFAngleBendParams(mol, *triplet):
+            double_num_angles += 1
+    num_angles = double_num_angles / 2  # account for duplicate angles
+
+    avr_angle_e = min_angle_e / num_angles
+    if avr_angle_e < cutoff:
+        return True
+    else:
+        return False
 
 
 # ==================================================================================================
@@ -173,7 +236,7 @@ def _enum_atom_additions(mol, open_idxs, atom_types, max_mol_size):
 
             if Chem.SanitizeMol(next_mol, catchErrors=True):
                 continue  # sanitization failed
-            if not master_filter(next_mol):
+            if not master_filter(next_mol, steric=False):
                 continue  # failed to pass filters
 
             set_openness(atom, is_open=False)
