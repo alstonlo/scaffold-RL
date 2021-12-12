@@ -1,5 +1,4 @@
 import random
-from src.utils.mol_utils import base_smiles
 
 
 def greedy_choice(action_space, metric):
