@@ -22,7 +22,7 @@ class EpsilonGreedyAgent(Agent):
     def __init__(self, epsilon):
         self.epsilon = epsilon
 
-    def rollout(self, env, verbose=False):
+    def rollout(self, env):
         env.reset()
 
         obs = env.state
@@ -35,8 +35,4 @@ class EpsilonGreedyAgent(Agent):
                 act = greedy_choice(action_space, env.prop_fn)
             obs, reward, _ = env.step(act)
             value += reward
-
-            if verbose:
-                print(base_smiles(obs[0]), reward)
-
         return obs[0], value
