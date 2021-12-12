@@ -2,7 +2,9 @@ import functools
 import itertools
 
 from rdkit import Chem
+from rdkit import DataStructs
 from rdkit.Chem.FilterCatalog import FilterCatalogParams, FilterCatalog
+from rdkit.Chem.rdMolDescriptors import GetMorganFingerprint
 
 
 # ==================================================================================================
@@ -213,3 +215,33 @@ def _enum_bond_additions(mol, open_idxs, allowed_ring_sizes):
             bond_additions.add(Chem.MolToSmiles(next_mol))
 
     return bond_additions
+
+
+# ==================================================================================================
+# Metrics
+# ==================================================================================================
+
+
+def validity(smiles):  # validity guaranteed, but sanity check
+    num_valid = sum(1 for s in smiles if (Chem.MolFromSmiles(s) is not None))
+    return num_valid / len(smiles)
+
+
+def uniqueness(smiles):
+    return len(set(smiles)) / len(smiles)
+
+
+def molecule_similarity(mol1, mol2):
+    vec1 = GetMorganFingerprint(mol1, radius=2)
+    vec2 = GetMorganFingerprint(mol2, radius=2)
+    return DataStructs.TanimotoSimilarity(vec1, vec2)
+
+
+def pairwise_diversities(smiles):
+    mols = [Chem.MolFromSmiles(s) for s in smiles]
+    assert None not in mols
+
+    scores = []
+    for mol1, mol2 in itertools.combinations(mols, r=2):
+        scores.append(1 - molecule_similarity(mol1, mol2))
+    return scores
