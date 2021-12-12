@@ -16,9 +16,9 @@ def element_valence(element):
     return max(ptable.GetValenceList(element))
 
 
-def update_explicit_Hs(atom, delta):
+def update_explicit_Hs(atom, offset):
     explicit_Hs = atom.GetNumExplicitHs()
-    atom.SetNumExplicitHs(explicit_Hs + delta)
+    atom.SetNumExplicitHs(explicit_Hs + offset)
 
 
 # ==================================================================================================
