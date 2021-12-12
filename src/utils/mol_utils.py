@@ -33,7 +33,8 @@ def master_filter(mol, zinc=True, steric=True):
     if zinc:
         filters.append(zinc_molecule_filter)
     if steric:
-        pass  # TODO: temporarily removed because slow
+        filters.append(bicycle_filter)
+        # TODO: add MMFF94 forcefield filter?
     return all(f(mol) for f in filters)
 
 
@@ -42,6 +43,14 @@ def zinc_molecule_filter(mol):
     params.AddCatalog(FilterCatalogParams.FilterCatalogs.ZINC)
     catalog = FilterCatalog(params)
     return not catalog.HasMatch(mol)
+
+
+def bicycle_filter(mol):
+    cycles = list(set(ring) for ring in Chem.GetSymmSSSR(mol))
+    for c1, c2 in itertools.combinations(cycles, r=2):
+        if len(c1 & c2) > 2:
+            return False
+    return True
 
 
 # ==================================================================================================
@@ -154,7 +163,7 @@ def _enum_atom_additions(mol, open_idxs, atom_types, max_mol_size):
 
             if Chem.SanitizeMol(next_mol, catchErrors=True):
                 continue  # sanitization failed
-            if not master_filter(next_mol):
+            if not master_filter(next_mol, steric=False):
                 continue  # failed to pass filters
 
             set_openness(atom, is_open=False)
