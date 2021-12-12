@@ -50,10 +50,12 @@ class ScaffoldDecorator:
             raise ValueError()
         elif action not in self._valid_actions:
             return ValueError()
+        changed = (action != self._mol)
 
         self._mol = action
         self._steps_left -= 1
-        self._rebuild_valid_actions()
+        if changed:
+            self._rebuild_valid_actions()
         reward = self._reward_fn()
         done = (self._steps_left == 0)
         return self.state, reward, done
