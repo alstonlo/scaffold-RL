@@ -6,7 +6,7 @@ from tqdm import trange
 from src.agents import EpsilonGreedyAgent
 from src.environments import QEDScaffoldDecorator
 from src.utils.mol_utils import base_smiles
-from src.utils.utils import seed_everything
+from src.utils.seed_utils import seed_everything
 
 
 def main():
