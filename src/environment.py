@@ -1,7 +1,7 @@
 from rdkit import Chem
 from rdkit.Chem import QED
 
-from src.utils.mol_utils import enum_molecule_mods, penalized_logp
+from src.utils.mol_utils import enum_molecule_mods
 
 
 class ScaffoldDecorator:
@@ -9,16 +9,20 @@ class ScaffoldDecorator:
     def __init__(
             self,
             init_mol,
+            prop_fn,
             atom_types,
             allowed_ring_sizes,
             max_mol_size,
             max_steps,
+            discount
     ):
         self.init_mol = init_mol
+        self.prop_fn = prop_fn
         self.atom_types = atom_types
         self.allowed_ring_sizes = allowed_ring_sizes
         self.max_mol_size = max_mol_size
         self.max_steps = max_steps
+        self.discount = discount
 
         self._mol = None
         self._steps_left = self.max_steps
@@ -63,34 +67,7 @@ class ScaffoldDecorator:
         )
 
     def _reward_fn(self):
-        raise NotImplementedError()
-
-
-class LogPScaffoldDecorator(ScaffoldDecorator):
-
-    def __init__(
-            self,
-            init_mol,
-            atom_types=("C", "O", "N"),
-            allowed_ring_sizes=(5, 6, 7),
-            max_mol_size=38,
-            max_steps=40,
-            gamma=0.9
-    ):
-        super().__init__(
-            init_mol=init_mol,
-            atom_types=atom_types,
-            allowed_ring_sizes=allowed_ring_sizes,
-            max_mol_size=max_mol_size,
-            max_steps=max_steps,
-        )
-
-        self.gamma = gamma
-
-    def _reward_fn(self):
-        mol = Chem.MolFromSmiles(self._mol)
-        assert mol is not None
-        return penalized_logp(mol) * (self.gamma ** self._steps_left)
+        return self.prop_fn(self._mol) * (self.discount ** self._steps_left)
 
 
 class QEDScaffoldDecorator(ScaffoldDecorator):
@@ -102,19 +79,23 @@ class QEDScaffoldDecorator(ScaffoldDecorator):
             allowed_ring_sizes=(5, 6, 7),
             max_mol_size=38,
             max_steps=40,
-            gamma=0.9
+            discount=0.9
     ):
         super().__init__(
             init_mol=init_mol,
+            prop_fn=self.qed,
             atom_types=atom_types,
             allowed_ring_sizes=allowed_ring_sizes,
             max_mol_size=max_mol_size,
             max_steps=max_steps,
+            discount=discount
         )
 
-        self.gamma = gamma
-
-    def _reward_fn(self):
-        mol = Chem.MolFromSmiles(self._mol)
+    def qed(self, smiles):
+        mol = Chem.MolFromSmiles(smiles)
         assert mol is not None
-        return QED.qed(mol) * (self.gamma ** self._steps_left)
+
+        try:
+            return QED.qed(mol)
+        except ValueError:
+            return 0.0

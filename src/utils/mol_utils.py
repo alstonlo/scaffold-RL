@@ -1,15 +1,8 @@
 import functools
 import itertools
-import os
-import sys
 
-import networkx as nx
 from rdkit import Chem
-from rdkit.Chem import Descriptors, RDConfig
 from rdkit.Chem.FilterCatalog import FilterCatalogParams, FilterCatalog
-
-sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))
-import sascorer
 
 
 # ==================================================================================================
@@ -26,43 +19,6 @@ def element_valence(element):
 def update_explicit_Hs(atom, delta):
     explicit_Hs = atom.GetNumExplicitHs()
     atom.SetNumExplicitHs(explicit_Hs + delta)
-
-
-# ==================================================================================================
-# Penalized logP
-# Reference:
-#   https://github.com/bowenliu16/rl_graph_generation/blob/master/gym-molecule/gym_molecule/envs/molecule.py
-# ==================================================================================================
-
-
-def penalized_logp(mol):
-    logP_mean = 2.4570953396190123
-    logP_std = 1.434324401111988
-    SA_mean = -3.0525811293166134
-    SA_std = 0.8335207024513095
-    cycle_mean = -0.0485696876403053
-    cycle_std = 0.2860212110245455
-
-    log_p = Descriptors.MolLogP(mol)
-    SA = -sascorer.calculateScore(mol)
-
-    # cycle score
-    cycle_list = nx.cycle_basis(nx.Graph(Chem.rdmolops.GetAdjacencyMatrix(mol)))
-    if len(cycle_list) == 0:
-        cycle_length = 0
-    else:
-        cycle_length = max([len(j) for j in cycle_list])
-    if cycle_length <= 6:
-        cycle_length = 0
-    else:
-        cycle_length = cycle_length - 6
-    cycle_score = -cycle_length
-
-    normalized_log_p = (log_p - logP_mean) / logP_std
-    normalized_SA = (SA - SA_mean) / SA_std
-    normalized_cycle = (cycle_score - cycle_mean) / cycle_std
-
-    return normalized_log_p + normalized_SA + normalized_cycle
 
 
 # ==================================================================================================
