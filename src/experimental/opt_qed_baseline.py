@@ -4,7 +4,7 @@ import pandas as pd
 from tqdm import trange
 
 from src.agents import EpsilonGreedyAgent
-from src.environment import QEDScaffoldDecorator
+from src.environments import QEDScaffoldDecorator
 from src.utils.mol_utils import base_smiles
 from src.utils.utils import seed_everything
 
