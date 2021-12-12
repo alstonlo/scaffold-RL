@@ -78,7 +78,7 @@ class QEDScaffoldDecorator(ScaffoldDecorator):
             self,
             init_mol,
             atom_types=("C", "O", "N"),
-            allowed_ring_sizes=(5, 6, 7),
+            allowed_ring_sizes=(5, 6),
             max_mol_size=38,
             max_steps=40,
             discount=0.9

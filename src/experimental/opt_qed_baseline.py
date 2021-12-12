@@ -20,7 +20,7 @@ def main():
         agent = EpsilonGreedyAgent(epsilon)
 
         sampled = []
-        n_samples = 1 if epsilon == 0.0 else 100
+        n_samples = 1 if epsilon == 0.0 else 150
         for _ in trange(n_samples, desc=f"Eps={epsilon:.2f}"):
             mol, value = agent.rollout(env)
             mol = base_smiles(mol)
