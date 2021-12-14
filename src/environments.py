@@ -34,6 +34,8 @@ class ScaffoldDecorator:
 
     @property
     def valid_actions(self):
+        if self._steps_left == 0:
+            return list()
         return list(sorted(self._valid_actions))
 
     def reset(self):

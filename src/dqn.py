@@ -54,23 +54,19 @@ class ScaffoldDQN(torch.nn.Module):
     def __init__(
             self,
             atom_types,
+            num_layers,
+            emb_dim,
+            dropout,
             device,
-            num_node_emb_list=(100, 1),
-            num_edge_emb_list=(100,),
-            num_layers=5,
-            emb_dim=300,
-            dropout=0.5,
     ):
         super().__init__()
         self.atom_types = atom_types
         self.featurizer = ScaffoldFeaturizer(atom_types)
-        assert len(num_node_emb_list) == 2
-        assert len(num_edge_emb_list) == 1
         self.device = device
 
         self.gnn = dgllife.model.GIN(
-            num_node_emb_list=num_node_emb_list,
-            num_edge_emb_list=num_edge_emb_list,
+            num_node_emb_list=[len(atom_types), 2],
+            num_edge_emb_list=[5],
             num_layers=num_layers,
             emb_dim=emb_dim,
             JK="last",

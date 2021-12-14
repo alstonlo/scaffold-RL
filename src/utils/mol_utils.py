@@ -12,6 +12,16 @@ from rdkit.Chem.rdMolDescriptors import GetMorganFingerprint
 # ==================================================================================================
 
 
+class Molecule:
+
+    def __init__(self, smiles):
+        self._smiles = smiles
+
+    @properety
+    def smiles(self):
+        pass
+
+
 @functools.lru_cache()
 def element_valence(element):
     ptable = Chem.GetPeriodicTable()
