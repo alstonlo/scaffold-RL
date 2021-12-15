@@ -32,18 +32,23 @@ def target_dqn_update(dqn, target_dqn, polyak):
 
 
 def dqn_update(dqn, target_dqn, batch, optimizer):
-    dqn.train()
-
     sa_ts, rewards, sa_tp1ses, dones = batch
     sa_ts = np.concatenate(sa_ts, axis=0)
-    rewards = torch.tensor(rewards, dtype=torch.float).to(DEVICE)
+    rewards = torch.tensor(rewards, dtype=torch.float, device=DEVICE)
 
-    v_tp1s = torch.zeros_like(rewards)
-    for i, sa_tp1s in enumerate(sa_tp1ses):
-        if not dones[i]:
-            v_tp1s[i] = torch.max(target_dqn(sa_tp1s))
+    with torch.no_grad():
+        opt_actions = torch.zeros(sa_ts.shape, device=DEVICE)
+        for i, sa_tp1s in enumerate(sa_tp1ses):
+            if not dones[i]:
+                sa_tp1s = torch.tensor(sa_tp1s, dtype=torch.float, device=DEVICE)
+                opt_index = torch.argmax(dqn(sa_tp1s)).item()
+                opt_actions[i] = sa_tp1s[opt_index]
 
-    td_target = (rewards + v_tp1s)
+        mask = 1 - torch.tensor(dones, dtype=torch.float, device=DEVICE)
+        v_tp1s = mask * target_dqn(opt_actions).squeeze(1)
+
+    dqn.train()
+    td_target = rewards + v_tp1s
     q_ts = dqn(sa_ts).squeeze(1)
     loss = F.huber_loss(td_target, q_ts)
 
