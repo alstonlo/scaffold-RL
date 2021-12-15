@@ -66,7 +66,8 @@ def train_double_dqn(
     assert env.max_steps % update_freq == 0
     dqn.eval()
 
-    agent = DQNAgent(dqn, epsilon=1.0)
+    behavior_agent = DQNAgent(dqn, epsilon=1.0)
+    optimal_agent = DQNAgent(dqn, epsilon=0.01)
     eps_step = 0.99 / n_episodes
 
     replay_buffer = ReplayBuffer(buffer_size)
@@ -80,14 +81,12 @@ def train_double_dqn(
     for episode in trange(n_episodes, desc="Episodes"):
         env.reset()
         losses = []
-        value = 0.0
 
         for step in range(env.max_steps):
 
             with torch.no_grad():
-                act = agent.sample_action(env)
+                act = behavior_agent.sample_action(env)
             next_obs, reward, done = env.step(act)
-            value += reward
 
             # since MDP is deterministic (s, a) can be represented with s'
             sa_t = dqn.featurize_batch([next_obs])
@@ -106,15 +105,18 @@ def train_double_dqn(
             if (step + 1) % update_freq == 0:
                 target_dqn_update(dqn, target_dqn, polyak)
 
-        agent.epsilon -= eps_step
+        behavior_agent.epsilon -= eps_step
+        avg_loss = statistics.mean(losses)
+
+        # try rolling out optimally
+        env.reset()
+        mol, value = optimal_agent.rollout(env)
+        qed = env.prop_fn(mol)
 
         # wandb logging
-        avg_loss = statistics.mean(losses)
-        qed = env.prop_fn(env.state[0])
-
         metrics = {"Episode": episode, "Value": value, "QED": qed, "Loss": avg_loss}
         if episode % 20 == 0:
-            metrics["Molecule"] = wandb.Image(env.state[0].visualize())
+            metrics["Molecule"] = wandb.Image(mol.visualize())
         wandb.log(metrics)
 
         if episode % 100 == 0:
@@ -135,8 +137,8 @@ def main():
     seed_everything(seed=498)
     train_double_dqn(
         dqn=dqn, env=env, buffer_size=5000,
-        n_episodes=2000, batch_size=128, lr=1e-4,
-        learn_freq=4, update_freq=20, polyak=0.995
+        n_episodes=5000, batch_size=128, lr=1e-4,
+        learn_freq=1, update_freq=20, polyak=0.995
     )
 
 
