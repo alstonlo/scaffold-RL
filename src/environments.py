@@ -1,7 +1,6 @@
-from rdkit import Chem
 from rdkit.Chem import QED
 
-from src.utils.mol_utils import enum_molecule_mods
+from src.utils.mol_utils import enum_molecule_mods, Molecule
 
 
 class ScaffoldDecorator:
@@ -46,7 +45,7 @@ class ScaffoldDecorator:
     def step(self, action):
         # Assumes action (next molecule) is valid
         # Returns (next state, reward, done)
-        assert isinstance(action, str)
+        assert isinstance(action, Molecule)
 
         if self._steps_left == 0:
             raise ValueError()

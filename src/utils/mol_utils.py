@@ -14,7 +14,6 @@ class Molecule:
         return Molecule(Chem.MolFromSmiles(smiles))
 
     def __init__(self, rdkmol):
-        self.rdkmol = rdkmol
         self.smiles = Chem.MolToSmiles(rdkmol)
 
     def __str__(self):
@@ -25,6 +24,10 @@ class Molecule:
 
     def __eq__(self, other):
         return self.smiles == other.smiles
+
+    @functools.cached_property
+    def rdkmol(self):
+        return Chem.MolFromSmiles(self.smiles)
 
     @functools.cached_property
     def base_smiles(self):
