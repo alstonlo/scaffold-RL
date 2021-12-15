@@ -50,6 +50,7 @@ def dqn_update(dqn, target_dqn, batch, optimizer):
     # backprop
     optimizer.zero_grad()
     loss.backward()
+    torch.nn.utils.clip_grad_norm_(dqn.parameters(), 10)
     optimizer.step()
 
     dqn.eval()
@@ -111,11 +112,10 @@ def train_double_dqn(
         avg_loss = statistics.mean(losses)
         qed = env.prop_fn(env.state[0])
 
-        wandb.log({
-            "Episode": episode,
-            "Molecule": wandb.Image(env.state[0].visualize()),
-            "Value": value, "QED": qed, "Loss": avg_loss
-        })
+        metrics = {"Episode": episode, "Value": value, "QED": qed, "Loss": avg_loss}
+        if episode % 20 == 0:
+            metrics["Molecule"] = wandb.Image(env.state[0].visualize())
+        wandb.log(metrics)
 
         if episode % 100 == 0:
             wandb_checkpoint(model=dqn)
@@ -134,7 +134,7 @@ def main():
 
     seed_everything(seed=498)
     train_double_dqn(
-        dqn=dqn, env=env, buffer_size=100000,
+        dqn=dqn, env=env, buffer_size=5000,
         n_episodes=2000, batch_size=128, lr=1e-4,
         learn_freq=4, update_freq=20, polyak=0.995
     )

@@ -7,13 +7,19 @@ from rdkit.Chem import DataStructs, rdMolDescriptors
 from src.utils.mol_utils import openness, set_openness
 
 
-def morgan_fingerprint(mol):
-    clone = Chem.Mol(mol.rdkmol)
-    for atom in clone.GetAtoms():
-        if openness(atom):
-            atom.SetIsotope(1)  # TODO: kind of a hack
-            set_openness(atom, is_open=False)
-    return rdMolDescriptors.GetMorganFingerprintAsBitVect(clone, radius=3, nBits=2048)
+def morgan_fingerprint(mol, use_base=True):
+    rdkmol = mol.rdkmol
+    if not use_base:
+        clone = Chem.Mol(mol.rdkmol)
+        for atom in clone.GetAtoms():
+            if openness(atom):
+                atom.SetIsotope(1)  # TODO: kind of a hack
+                set_openness(atom, is_open=False)
+        rdkmol = clone
+    fp_arr = np.zeros((0,), dtype=np.int8)
+    fp = rdMolDescriptors.GetMorganFingerprintAsBitVect(rdkmol, radius=3, nBits=2048)
+    DataStructs.ConvertToNumpyArray(fp, fp_arr)
+    return fp_arr
 
 
 class ScaffoldDQN(nn.Module):
@@ -26,10 +32,10 @@ class ScaffoldDQN(nn.Module):
 
         encodings = []
         for mol in mols:
-            fp = morgan_fingerprint(mol)
-            fp_arr = np.zeros((0,), dtype=np.int8)
-            DataStructs.ConvertToNumpyArray(fp, fp_arr)
-            encodings.append(fp_arr)
+            fp1 = morgan_fingerprint(mol, use_base=True)
+            fp2 = morgan_fingerprint(mol, use_base=False)
+            fp = np.concatenate([fp1, fp2], axis=0)
+            encodings.append(fp)
         encodings = np.stack(encodings, axis=0)
         encodings = np.concatenate([encodings, steps], axis=1)
         return encodings
@@ -39,19 +45,16 @@ class ScaffoldDQN(nn.Module):
         self.device = device
 
         self.model = nn.Sequential(
-            nn.Linear(2049, 1024),
-            nn.BatchNorm1d(1024),
+            nn.Linear(4097, 1024),
             nn.GELU(),
             nn.Linear(1024, 512),
-            nn.BatchNorm1d(512),
             nn.GELU(),
             nn.Linear(512, 128),
-            nn.BatchNorm1d(128),
             nn.GELU(),
             nn.Linear(128, 32),
-            nn.BatchNorm1d(32),
             nn.GELU(),
-            nn.Linear(32, 1)
+            nn.Linear(32, 1),
+            nn.Sigmoid()
         ).to(device)
 
     def forward(self, states):
