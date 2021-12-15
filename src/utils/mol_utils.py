@@ -25,11 +25,13 @@ class Molecule:
     def __eq__(self, other):
         return self.smiles == other.smiles
 
-    @functools.cached_property
+    @property
+    @functools.lru_cache()
     def rdkmol(self):
         return Chem.MolFromSmiles(self.smiles)
 
-    @functools.cached_property
+    @property
+    @functools.lru_cache()
     def base_smiles(self):
         clone = Chem.Mol(self.rdkmol)
         for atom in clone.GetAtoms():

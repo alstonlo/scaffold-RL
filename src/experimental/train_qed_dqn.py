@@ -98,7 +98,7 @@ def train_double_dqn(
             replay_buffer.add(sa_t, reward, sa_tp1s, done)
 
             # perform double DQN update
-            if (step + 1) % learn_freq == 0:
+            if ((step + 1) % learn_freq == 0) and (len(replay_buffer) > 1):
                 batch = replay_buffer.sample(batch_size)
                 loss = dqn_update(dqn, target_dqn, batch, optimizer)
                 losses.append(loss)
