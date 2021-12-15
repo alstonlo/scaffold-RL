@@ -66,7 +66,7 @@ def train_double_dqn(
     dqn.eval()
 
     agent = DQNAgent(dqn, epsilon=1.0)
-    eps_anneal = 0.01 ** (1 / n_episodes)
+    eps_step = 0.99 / n_episodes
 
     replay_buffer = ReplayBuffer(buffer_size)
     target_dqn = copy.deepcopy(dqn).to(DEVICE)
@@ -105,7 +105,7 @@ def train_double_dqn(
             if (step + 1) % update_freq == 0:
                 target_dqn_update(dqn, target_dqn, polyak)
 
-        agent.epsilon *= eps_anneal
+        agent.epsilon -= eps_step
 
         # wandb logging
         avg_loss = statistics.mean(losses)
