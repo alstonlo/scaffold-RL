@@ -36,7 +36,7 @@ class ScaffoldDecorator:
     def valid_actions(self):
         if self._steps_left == 0:
             return list()
-        return list(sorted(self._valid_actions))
+        return list(sorted(self._valid_actions, key=lambda m: m.smiles))
 
     def reset(self):
         self._mol = self.init_mol
@@ -58,13 +58,16 @@ class ScaffoldDecorator:
         self._steps_left -= 1
         if changed:
             self._rebuild_valid_actions()
+        if self._steps_left == 1:  # set all actions to terminal
+            self._valid_actions = set(m.base_copy() for m in self._valid_actions)
+
         reward = self._reward_fn()
         done = (self._steps_left == 0)
         return self.state, reward, done
 
     def _rebuild_valid_actions(self):
         self._valid_actions = enum_molecule_mods(
-            smiles=self._mol,
+            mol=self._mol,
             atom_types=self.atom_types,
             allowed_ring_sizes=self.allowed_ring_sizes,
             max_mol_size=self.max_mol_size
@@ -95,11 +98,8 @@ class QEDScaffoldDecorator(ScaffoldDecorator):
             discount=discount
         )
 
-    def qed(self, smiles):
-        mol = Chem.MolFromSmiles(smiles)
-        assert mol is not None
-
+    def qed(self, mol):
         try:
-            return QED.qed(mol)
+            return QED.qed(mol.rdkmol)
         except ValueError:
             return 0.0
