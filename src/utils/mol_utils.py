@@ -3,8 +3,8 @@ import itertools
 
 from rdkit import Chem
 from rdkit import DataStructs
+from rdkit.Chem import rdDepictor, rdMolDescriptors, Draw
 from rdkit.Chem.FilterCatalog import FilterCatalogParams, FilterCatalog
-from rdkit.Chem.rdMolDescriptors import GetMorganFingerprint
 
 
 class Molecule:
@@ -39,6 +39,11 @@ class Molecule:
 
     def base_copy(self):
         return Molecule.from_smiles(self.base_smiles)
+
+    def visualize(self, width=300, height=300):
+        rdDepictor.Compute2DCoords(self.rdkmol)
+        rdDepictor.GenerateDepictionMatching2DStructure(self.rdkmol, self.rdkmol)
+        return Draw.MolToImage(self.rdkmol, size=(width, height))
 
 
 # ==================================================================================================
@@ -255,8 +260,8 @@ def uniqueness(mols):
 
 
 def molecule_similarity(mol1, mol2):
-    vec1 = GetMorganFingerprint(mol1.rdkmol, radius=2)
-    vec2 = GetMorganFingerprint(mol2.rdkmol, radius=2)
+    vec1 = rdMolDescriptors.GetMorganFingerprint(mol1.rdkmol, radius=2)
+    vec2 = rdMolDescriptors.GetMorganFingerprint(mol2.rdkmol, radius=2)
     return DataStructs.TanimotoSimilarity(vec1, vec2)
 
 

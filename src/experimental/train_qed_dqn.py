@@ -2,13 +2,16 @@ import copy
 import pathlib
 import statistics
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 import wandb
+from tqdm import trange
 
 from src.agents import DQNAgent
 from src.dqn import ScaffoldDQN
 from src.environments import QEDScaffoldDecorator
+from src.utils.mol_utils import Molecule
 from src.utils.replay_buffer import ReplayBuffer
 from src.utils.seed_utils import seed_everything
 
@@ -32,12 +35,14 @@ def dqn_update(dqn, target_dqn, batch, optimizer):
     dqn.train()
 
     sa_ts, rewards, sa_tp1ses, dones = batch
-
+    sa_ts = np.concatenate(sa_ts, axis=0)
     rewards = torch.tensor(rewards, dtype=torch.float).to(DEVICE)
+
     v_tp1s = torch.zeros_like(rewards)
     for i, sa_tp1s in enumerate(sa_tp1ses):
         if not dones[i]:
             v_tp1s[i] = torch.max(target_dqn(sa_tp1s))
+
     td_target = (rewards + v_tp1s)
     q_ts = dqn(sa_ts).squeeze(1)
     loss = F.huber_loss(td_target, q_ts)
@@ -71,7 +76,7 @@ def train_double_dqn(
 
     optimizer = torch.optim.Adam(dqn.parameters(), lr=lr)
 
-    for episode in range(n_episodes):
+    for episode in trange(n_episodes, desc="Episodes"):
         env.reset()
         losses = []
         value = 0.0
@@ -84,8 +89,12 @@ def train_double_dqn(
             value += reward
 
             # since MDP is deterministic (s, a) can be represented with s'
-            sa_t = next_obs
-            sa_tp1s = [(a, env.state[1] - 1) for a in env.valid_actions]
+            sa_t = dqn.featurize_batch([next_obs])
+            if done:
+                sa_tp1s = None
+            else:
+                sa_tp1s = [(a, env.state[1] - 1) for a in env.valid_actions]
+                sa_tp1s = dqn.featurize_batch(sa_tp1s)
             replay_buffer.add(sa_t, reward, sa_tp1s, done)
 
             # perform double DQN update
@@ -102,7 +111,12 @@ def train_double_dqn(
         avg_loss = statistics.mean(losses)
         qed = env.prop_fn(env.state[0])
 
-        wandb.log({"Episode": episode, "Value": value, "QED": qed, "Loss": avg_loss})
+        wandb.log({
+            "Episode": episode,
+            "Molecule": wandb.Image(env.state[0].visualize()),
+            "Value": value, "QED": qed, "Loss": avg_loss
+        })
+
         if episode % 100 == 0:
             wandb_checkpoint(model=dqn)
 
@@ -112,21 +126,16 @@ def main():
     log_dir.mkdir(parents=True, exist_ok=True)
     wandb.init(project="opt_QED_DQN", tensorboard=True, dir=log_dir)
 
-    env = QEDScaffoldDecorator(init_mol="[CH3:1][CH3:1]")
+    init_mol = Molecule.from_smiles("[CH3:1][CH3:1]")
+    env = QEDScaffoldDecorator(init_mol=init_mol)
 
     seed_everything(seed=498)
-    dqn = ScaffoldDQN(
-        atom_types=env.atom_types,
-        device=DEVICE,
-        num_layers=5,
-        emb_dim=300,
-        dropout=0.5,
-    )
+    dqn = ScaffoldDQN(device=DEVICE)
 
     seed_everything(seed=498)
     train_double_dqn(
-        dqn=dqn, env=env, buffer_size=5000,
-        n_episodes=2000, batch_size=16, lr=1e-4,
+        dqn=dqn, env=env, buffer_size=100000,
+        n_episodes=2000, batch_size=128, lr=1e-4,
         learn_freq=4, update_freq=20, polyak=0.995
     )
 
