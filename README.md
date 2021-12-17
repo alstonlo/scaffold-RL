@@ -18,6 +18,7 @@ The following summarizes the core files and folders of this repository
     - `report_qed_baseline.py`: script to report metrics from molecules generated in `opt_qed_baseline.py` 
     - `train_qed_dqn.py`: script to train the DQN 
     - `opt_qed_dqn.py`: script to sample molecules under the DQN
+    - `report_qed_baseline.py`: script to report metrics from molecules generated in `opt_qed_dqn.py`
   - `utils/`: contains various helper classes and functions used in throughout the project (e.g. a replay buffer 
   implementation, seeding utilites, and molecular graph manipulations)
 - `results/`: contains the designed molecules from the various agents and trained model files 
