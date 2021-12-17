@@ -45,14 +45,16 @@ class ScaffoldDQN(nn.Module):
         self.device = device
 
         self.model = nn.Sequential(
-            nn.Linear(4097, 1024),
-            nn.GELU(),
+            nn.Linear(4097, 2056),
+            nn.ReLU(),
+            nn.Linear(2056, 1024),
+            nn.ReLU(),
             nn.Linear(1024, 512),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Linear(512, 128),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Linear(128, 32),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Linear(32, 1),
             nn.Sigmoid()
         ).to(device)
