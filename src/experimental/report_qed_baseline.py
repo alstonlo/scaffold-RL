@@ -25,8 +25,8 @@ def main():
         if epsilon == 0.0:
             smiles = smiles * 100
 
-        print(f"\tQED:      {statistics.mean(qeds):.3f} +- {statistics.pstdev(qeds):.3f}")
-        print(f"\tValue:    {statistics.mean(values):.3f} +- {statistics.pstdev(values):.3f}")
+        print(f"\tQED:      ${statistics.mean(qeds):.3f}\\pm {statistics.pstdev(qeds):.3f}$")
+        print(f"\tReturn:   ${statistics.mean(values):.3f}\\pm {statistics.pstdev(values):.3f}$")
 
         mols = [Molecule.from_smiles(s) for s in smiles]
         print(f"\tValid:    {validity(mols)}")
@@ -34,7 +34,8 @@ def main():
         print(f"\tDiverse:  {statistics.mean(pairwise_diversities(mols)):.3f}")
 
         top3 = list(sorted(qeds, reverse=True))[:3]
-        print(f"\tTop 3: {top3}")
+        if epsilon != 0:
+            print(f"\tTop 3: [{top3[0]:.3f}, {top3[1]:.3f}, {top3[2]:.3f}]")
 
         print()
 
