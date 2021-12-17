@@ -5,6 +5,7 @@ import torch
 from tqdm import trange
 
 from src.agents import DQNAgent
+from src.dqn import ScaffoldDQN
 from src.environments import QEDScaffoldDecorator
 from src.utils.mol_utils import Molecule
 from src.utils.seed_utils import seed_everything
