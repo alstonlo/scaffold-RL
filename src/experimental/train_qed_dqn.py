@@ -31,7 +31,7 @@ def target_dqn_update(dqn, target_dqn, polyak):
             target_p.data.add_((1 - polyak) * p.data)
 
 
-def dqn_update(dqn, target_dqn, batch, optimizer):
+def dqn_update(dqn, target_dqn, batch, optimizer, scheduler):
     sa_ts, rewards, sa_tp1ses, dones = batch
     sa_ts = np.concatenate(sa_ts, axis=0)
     rewards = torch.tensor(rewards, dtype=torch.float, device=DEVICE)
@@ -57,6 +57,7 @@ def dqn_update(dqn, target_dqn, batch, optimizer):
     loss.backward()
     torch.nn.utils.clip_grad_norm_(dqn.parameters(), 10)
     optimizer.step()
+    scheduler.step()
 
     dqn.eval()
     return loss.item()
@@ -72,7 +73,7 @@ def train_double_dqn(
     dqn.eval()
 
     behavior_agent = DQNAgent(dqn, epsilon=1.0)
-    optimal_agent = DQNAgent(dqn, epsilon=0.01)
+    optimal_agent = DQNAgent(dqn, epsilon=0.0)
     eps_step = 0.99 / n_episodes
 
     replay_buffer = ReplayBuffer(buffer_size)
@@ -82,6 +83,7 @@ def train_double_dqn(
     target_dqn.eval()
 
     optimizer = torch.optim.Adam(dqn.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10000, gamma=0.9)
 
     for episode in trange(n_episodes, desc="Episodes"):
         env.reset()
@@ -105,7 +107,7 @@ def train_double_dqn(
             # perform double DQN update
             if ((step + 1) % learn_freq == 0) and (len(replay_buffer) > 1):
                 batch = replay_buffer.sample(batch_size)
-                loss = dqn_update(dqn, target_dqn, batch, optimizer)
+                loss = dqn_update(dqn, target_dqn, batch, optimizer, scheduler)
                 losses.append(loss)
             if (step + 1) % update_freq == 0:
                 target_dqn_update(dqn, target_dqn, polyak)
@@ -143,7 +145,7 @@ def main():
     train_double_dqn(
         dqn=dqn, env=env, buffer_size=5000,
         n_episodes=5000, batch_size=128, lr=1e-4,
-        learn_freq=1, update_freq=20, polyak=0.995
+        learn_freq=4, update_freq=20, polyak=0.995
     )
 
 
