@@ -6,6 +6,8 @@ import pandas as pd
 import seaborn as sns
 from scipy.stats import pearsonr, spearmanr
 
+from src.utils.mol_utils import Molecule, pairwise_diversities, uniqueness, validity
+
 
 def main():
     result_dir = pathlib.Path(__file__).parents[2] / "results" / "qed_baseline"

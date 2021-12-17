@@ -14,7 +14,8 @@ The following summarizes the core files and folders of this repository
   - `dqn.py`: the DQN implementation 
   - `agents.py`: the agent implementations (e.g. epsilon-greedy agent)
   - `experiments/`: contains the experimental scripts used in this project: 
-    - `opt_qed_baselines.py`: script to sample molecules from greedy and epsilon-greedy agents
+    - `opt_qed_baseline.py`: script to sample molecules from greedy and epsilon-greedy agents
+    - `report_qed_baseline.py`: script to report metrics from molecules generated in `opt_qed_baseline.py` 
     - `train_qed_dqn.py`: script to train the DQN 
     - `opt_qed_dqn.py`: script to sample molecules under the DQN
   - `utils/`: contains various helper classes and functions used in throughout the project (e.g. a replay buffer 
