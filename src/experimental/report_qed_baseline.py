@@ -1,9 +1,10 @@
 import pathlib
 import statistics
 
+import matplotlib.pyplot as plt
 import pandas as pd
-
-from src.utils.mol_utils import *
+import seaborn as sns
+from scipy.stats import pearsonr, spearmanr
 
 
 def main():
@@ -22,8 +23,8 @@ def main():
         if epsilon == 0.0:
             smiles = smiles * 150
 
-        print(f"\tQED:      {statistics.mean(qeds):.3f} +- {statistics.pstdev(qeds):.3f}")
-        print(f"\tValue:    {statistics.mean(values):.3f} +- {statistics.pstdev(values):.3f}")
+        print(f"\tQED:      ${statistics.mean(qeds):.3f}\\pm {statistics.pstdev(qeds):.3f}$")
+        print(f"\tReturn:   ${statistics.mean(values):.3f}\\pm {statistics.pstdev(values):.3f}$")
 
         mols = [Molecule.from_smiles(s) for s in smiles]
         print(f"\tValid:    {validity(mols)}")
@@ -31,9 +32,25 @@ def main():
         print(f"\tDiverse:  {statistics.mean(pairwise_diversities(mols)):.3f}")
 
         top3 = list(sorted(qeds, reverse=True))[:3]
-        print(f"\tTop 3: {top3}")
+        if epsilon != 0:
+            print(f"\tTop 3: [{top3[0]:.3f}, {top3[1]:.3f}, {top3[2]:.3f}]")
 
         print()
+
+    # plot QED vs Values
+    sampled = pd.read_csv(result_dir / f"eps=0.2.csv")
+    values = list(sampled["value"])
+    qeds = list(sampled["qed"])
+
+    print(f"Pearson:  {pearsonr(values, qeds)[0]}")
+    print(f"Spearman: {spearmanr(values, qeds)[0]}")
+
+    sns.set_theme(font_scale=1.5)
+    sns.scatterplot(x=values, y=qeds, s=20)
+    plt.xlabel("Return")
+    plt.ylabel("QED")
+    plt.tight_layout()
+    plt.savefig(result_dir / "qed-return.pdf", format="pdf")
 
 
 if __name__ == "__main__":
