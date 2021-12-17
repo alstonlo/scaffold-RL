@@ -1,9 +1,12 @@
 import pathlib
 import statistics
 
+import matplotlib.pyplot as plt
 import pandas as pd
+import seaborn as sns
+from scipy.stats import pearsonr, spearmanr
 
-from src.utils.mol_utils import *
+from src.utils.mol_utils import Molecule, pairwise_diversities, uniqueness, validity
 
 
 def main():
@@ -20,7 +23,7 @@ def main():
         qeds = list(sampled["qed"])[:100]
 
         if epsilon == 0.0:
-            smiles = smiles * 150
+            smiles = smiles * 100
 
         print(f"\tQED:      {statistics.mean(qeds):.3f} +- {statistics.pstdev(qeds):.3f}")
         print(f"\tValue:    {statistics.mean(values):.3f} +- {statistics.pstdev(values):.3f}")
@@ -34,6 +37,21 @@ def main():
         print(f"\tTop 3: {top3}")
 
         print()
+
+    # plot QED vs Values
+    sampled = pd.read_csv(result_dir / f"eps=0.2.csv")
+    values = list(sampled["value"])
+    qeds = list(sampled["qed"])
+
+    print(f"Pearson:  {pearsonr(values, qeds)[0]}")
+    print(f"Spearman: {spearmanr(values, qeds)[0]}")
+
+    sns.set_theme(font_scale=1.5)
+    sns.scatterplot(x=values, y=qeds, s=20)
+    plt.xlabel("Return")
+    plt.ylabel("QED")
+    plt.tight_layout()
+    plt.savefig(result_dir / "qed-return.pdf", format="pdf")
 
 
 if __name__ == "__main__":
