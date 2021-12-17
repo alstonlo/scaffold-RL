@@ -23,7 +23,7 @@ def main():
         qeds = list(sampled["qed"])[:100]
 
         if epsilon == 0.0:
-            smiles = smiles * 150
+            smiles = smiles * 100
 
         print(f"\tQED:      ${statistics.mean(qeds):.3f}\\pm {statistics.pstdev(qeds):.3f}$")
         print(f"\tReturn:   ${statistics.mean(values):.3f}\\pm {statistics.pstdev(values):.3f}$")
