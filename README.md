@@ -23,7 +23,7 @@ The following summarizes the core files and folders of this repository
   implementation, seeding utilites, and molecular graph manipulations)
 - `results/`: contains the designed molecules from the various agents and trained model files 
   - `qed_baseline/`: contains the molecules designed from the epsilon-greedy agents
-  - `qed_dqn/`: contains the molecules designed from the DQN
+  - `qed_dqn/`: contains the molecules designed from the DQN and the trained DQN model file
 
 ## Reproducability
 
